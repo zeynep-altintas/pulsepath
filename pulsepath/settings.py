@@ -7,10 +7,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / '.env')  # Works on both Windows and Mac
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-%&684n6320asn6z=0d+d+rg#q@0=ngs@#_s-ula&-lk44iix5c'
-
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-placeholder-for-public-repo")
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ['10.216.39.174',
                  '172.20.10.2',
@@ -37,7 +36,7 @@ INSTALLED_APPS = [
 
 ASGI_APPLICATION = "pulsepath.asgi.application"
 
-# WebSocket channel layer (Using In-Memory for now, consider Redis for production)
+# # WebSocket channel layer configured for Redis
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
