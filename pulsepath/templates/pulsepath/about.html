@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}PulsePath | About Us{% endblock %}
+
+{% block content %}
+<style>
+    /* Wrapper sets background for top half */
+    .about-wrapper {
+        background-color: #e61464;
+        box-sizing: border-box;
+    }
+
+    .about-section {
+        display: flex;
+        height: 100vh;
+        gap: 2px;
+    }
+
+    .about-left, .about-right {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 5vw;
+    }
+
+    .about-left {
+        background-color: #f1b5d8;
+    }
+
+    .about-left img {
+        max-width: 60%;
+        height: auto;
+        transition: transform 0.6s ease-in-out;
+    }
+
+    .about-left img:hover {
+        transform: rotate(360deg);
+    }
+
+    .about-right {
+        background-color: #ff7bdc;
+        color: #6a0030;
+        flex-direction: column;
+        text-align: left;
+    }
+
+    .about-right h1 {
+        font-size: 3rem;
+        font-weight: 900;
+        text-transform: lowercase;
+        color: #8c0032;
+        margin-bottom: 1rem;
+    }
+
+    .about-right p {
+        font-size: 1.3rem;
+        font-weight: 500;
+        max-width: 700px;
+    }
+
+    /* Zigzag steps container */
+    .zigzag-section {
+        padding: 6rem 2rem;
+        background-color: #fff;
+        position: relative;
+    }
+
+    .zigzag-step {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8rem;
+    }
+
+    .zigzag-step:nth-child(even) {
+        flex-direction: row-reverse;
+    }
+
+    .zigzag-text {
+        flex: 1;
+        padding: 2rem;
+        max-width: 500px;
+    }
+
+    .zigzag-text h2 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #6a0030;
+        text-transform: lowercase;
+        margin-bottom: 0.8rem;
+    }
+
+    .zigzag-text p {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .zigzag-image {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .zigzag-image img {
+        max-width: 50%;
+        height: auto;
+        border-radius: 16px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .about-section {
+            flex-direction: column;
+            height: auto;
+        }
+
+        .zigzag-step {
+            flex-direction: column !important;
+            text-align: center;
+            gap: 2rem;
+        }
+
+        .zigzag-text, .zigzag-image {
+            max-width: 90%;
+        }
+    }
+</style>
+
+<!-- Top section with logo and mission -->
+<div class="about-wrapper">
+    <div class="about-section">
+        <div class="about-left">
+            <img src="{% static 'images/favicon.png' %}" alt="PulsePath logo">
+        </div>
+        <div class="about-right">
+            <h1>our mission</h1>
+            <p>
+                PulsePath is redefining how festivals manage crowds and safety.  
+                With real-time data, custom alerts, and interactive mapping,  
+                we help organisers and attendees experience festivals that are not just smarter —  
+                but safer, smoother, and more unforgettable.  
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Four-step zigzag visual story -->
+<div class="zigzag-section">
+    <!-- Step 1 -->
+    <div class="zigzag-step">
+        <div class="zigzag-image">
+            <img src="{% static 'images/map-sample.png' %}" alt="Interactive Map" />
+        </div>
+        <div class="zigzag-text">
+            <h2>live map tracking</h2>
+            <p>Festival organisers can view real-time foot traffic with PulsePath’s interactive map — enabling smarter decisions on the fly.</p>
+        </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="zigzag-step">
+        <div class="zigzag-image">
+            <img src="{% static 'images/capacity-icons.png' %}" alt="Capacity Indicators" />
+        </div>
+        <div class="zigzag-text">
+            <h2>capacity awareness</h2>
+            <p>Dynamic icons alert when facilities are at low, medium, or high occupancy — including toilets, stages, and vendor zones.</p>
+        </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="zigzag-step">
+        <div class="zigzag-image">
+            <img src="{% static 'images/notifications.png' %}" alt="Smart Notifications" />
+        </div>
+        <div class="zigzag-text">
+            <h2>smart notifications</h2>
+            <p>Both organisers and attendees receive nudges when crowd flow changes — helping reduce bottlenecks and improve safety.</p>
+        </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="zigzag-step">
+        <div class="zigzag-image">
+            <img src="{% static 'images/festival-harmony.png' %}" alt="Peace of Mind" />
+        </div>
+        <div class="zigzag-text">
+            <h2>peace of mind</h2>
+            <p>No more manual counting or guessing. PulsePath gives organisers control and festival-goers the freedom to roam confidently.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

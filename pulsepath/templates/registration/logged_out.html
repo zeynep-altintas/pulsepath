@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+
+{% block title %}Logged Out{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-center text-white">
+    <h1>You've been logged out.</h1>
+    <a href="{% url 'login' %}" class="cta-button mt-3">Login Again</a>
+</div>
+{% endblock %}

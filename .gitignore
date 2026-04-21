@@ -1,0 +1,26 @@
+# Virtual environments
+venv/
+.venv/
+
+# Environment variables
+.env
+*.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local database / runtime files
+db.sqlite3
+dump.rdb
+
+# Static build output (Django collectstatic)
+staticfiles/
+
+# OS / editor files
+.DS_Store
+.vscode/
+
+# Misc local files
+branch
+ls

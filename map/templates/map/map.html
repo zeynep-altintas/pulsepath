@@ -1,0 +1,398 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}PulsePath Map{% endblock %}
+
+{% block extra_head %}
+<style>
+    #map {
+        width: 100%;
+        height: 100vh;
+        position: relative;
+        z-index: 0;
+    }
+
+    .notification-container {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+    }
+
+    .toast {
+        background-color: rgb(1, 8, 57) !important;
+        color: white !important;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-weight: bold;
+        font-size: 16px;
+        z-index: 999999;
+        opacity: 1 !important;
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        animation: none !important;
+        margin: 5px 0;
+        min-width: 320px;
+        max-width: 400px;
+    }
+
+</style>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+</script>
+{% endblock %}
+
+{% block content %}
+<div id="map"></div>
+<div id="notification-container" class="notification-container"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    mapboxgl.accessToken = '{{ mapbox_token }}';
+
+    const userStages = JSON.parse('{{ user_stages_json|escapejs }}');
+    const artistLineup = JSON.parse('{{ artist_lineup_json|escapejs }}');
+    const selectedArtists = JSON.parse('{{ selected_artists_json|escapejs }}');
+    const lastSentAlerts = {};
+    const lastNotificationTimestamps = {};
+    const NOTIFICATION_THROTTLE_MS = 10000; // 7 seconds
+    let mapLoaded = false;
+
+    // Only run personalised notification logic if lineup data is available
+    const hasPersonalLineup = Array.isArray(selectedArtists) && selectedArtists.length > 0 &&
+    Array.isArray(userStages) && userStages.length > 0;
+
+    setTimeout(() => {
+        if (!hasPersonalLineup) {
+            console.log("⚠️ Showing fallback toast for anonymous or empty lineup");
+            showNotification("Log in and add artists to get personalised alerts!");
+        }
+    }, 1000);
+
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/navigation-night-v1',
+        center: [-6.2626, 53.3825],
+        zoom: 16,
+        minZoom: 15,
+        maxZoom: 18
+    });
+
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+    const facilitiesGeoJSON = {
+        type: "FeatureCollection",
+        features: JSON.parse('{{ facilities_json|escapejs }}').map(facility => ({
+            type: "Feature",
+            geometry: {
+                type: "Point",
+                coordinates: [facility.longitude, facility.latitude]
+            },
+            properties: {
+                name: facility.name,
+                category: facility.category,
+                crowd_level: "Low"
+            }
+        }))
+    };
+
+    const socket = new WebSocket("ws://" + window.location.host + "/ws/crowd-density/");
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.message && data.message.zone_counts) {
+            const zoneCounts = data.message.zone_counts;
+
+            facilitiesGeoJSON.features.forEach(feature => {
+                const zoneName = feature.properties.name;
+                const count = zoneCounts[zoneName];
+                if (count !== undefined) {
+                    let level = "Low";
+                    if (count >= 10) level = "Max";
+                    else if (count >= 5) level = "Med";
+
+                    feature.properties.crowd_level = level;
+
+                    if (hasPersonalLineup && userStages.includes(zoneName) && lastSentAlerts[zoneName] !== level) {
+                        const now = Date.now();
+                        const lastShown = lastNotificationTimestamps[zoneName] || 0;
+
+                        if (now - lastShown >= NOTIFICATION_THROTTLE_MS) {
+                            
+                            const nextArtist = artistLineup.find(artist => 
+                                selectedArtists.includes(artist.name) && artist.stage === zoneName
+                            );
+
+                            let message = `${zoneName} is now at ${level} crowd level`;
+
+                            if (nextArtist) {
+                                message = `${nextArtist.name} is playing soon at ${nextArtist.stage} (${nextArtist.time}). Crowd is ${level}. Head there now!`;
+                            }
+                            
+                            showNotification(message);
+
+                            lastNotificationTimestamps[zoneName] = now;
+                            lastSentAlerts[zoneName] = level;
+                        }
+                    }
+                }
+            });
+            if (mapLoaded && map.getSource('facilities')) {
+                map.getSource('facilities').setData(facilitiesGeoJSON);
+            }
+        }
+    };
+
+    navigator.geolocation.watchPosition(function(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const userId = "user-" + Math.floor(Math.random() * 10000);
+
+        fetch("/update-location/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrftoken
+            },
+            body: JSON.stringify({ user_id: userId, latitude: lat, longitude: lon })
+        }).then(response => response.json())
+          .then(data => console.log("Sent location:", data));
+    }, function (error) {
+        console.error("Geolocation error:", error);
+    }, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 5000
+    });
+
+    map.on('load', function () {
+        mapLoaded = true;
+
+        // Restore the festival boundary
+        map.addSource('festival-boundary', {
+            type: 'geojson',
+            data: {
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [[
+                        [-6.2648, 53.3843],
+                        [-6.2605, 53.3846],
+                        [-6.2592, 53.3837],
+                        [-6.2594, 53.3825],
+                        [-6.2608, 53.3815],
+                        [-6.2632, 53.3814],
+                        [-6.2646, 53.3819],
+                        [-6.2648, 53.3843]
+                    ]]
+                }
+            }
+        });
+
+        map.addLayer({
+            id: 'festival-boundary-fill',
+            type: 'fill',
+            source: 'festival-boundary',
+            paint: {
+                'fill-color': '#ff00aa',
+                'fill-opacity': 0.15
+            }
+        });
+
+        map.addLayer({
+            id: 'festival-boundary-outline',
+            type: 'line',
+            source: 'festival-boundary',
+            paint: {
+                'line-color': '#ff00aa',
+                'line-width': 2
+            }
+        });
+
+        map.fitBounds([[-6.265, 53.3810], [-6.2589, 53.3848]]);
+
+        map.addSource('facilities', {
+            type: 'geojson',
+            data: facilitiesGeoJSON
+        });
+
+        const iconList = [
+            { name: 'stage-icon', url: "{{ stage_icon_url }}" },
+            { name: 'bathroom-icon', url: "{{ bathroom_icon_url }}" },
+            { name: 'water-icon', url: "{{ water_icon_url }}" },
+            { name: 'food-icon', url: "{{ food_icon_url }}" }
+        ];
+
+        let loaded = 0;
+        iconList.forEach(icon => {
+            map.loadImage(icon.url, (err, image) => {
+                if (!err && !map.hasImage(icon.name)) {
+                    map.addImage(icon.name, image);
+                }
+                loaded++;
+                if (loaded === iconList.length) {
+                    addFacilityLayers();
+                }
+            });
+        });
+
+        function addFacilityLayers() {
+            const sharedLayout = {
+                'icon-size': [
+                    'interpolate', ['linear'], ['zoom'],
+                    13, 0.04,
+                    15, 0.08,
+                    17, 0.14
+                ],
+                'icon-allow-overlap': true,
+                'text-field': ['get', 'crowd_level'],
+                'text-size': 16,
+                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                'text-offset': [0, 2.5],
+                'text-anchor': 'top'
+            };
+
+            const sharedPaint = {
+                'text-color': '#ffffff',
+                'text-halo-color': ['match', ['get', 'crowd_level'],
+                    'Low', '#2ecc71',
+                    'Med', '#f39c12',
+                    'Max', '#e74c3c',
+                    '#999999'
+                ],
+                'text-halo-width': 10,
+                'text-halo-blur': 0
+            };
+
+            map.addLayer({
+                id: 'stages',
+                type: 'symbol',
+                source: 'facilities',
+                filter: ['==', ['get', 'category'], 'stage'],
+                layout: { ...sharedLayout, 'icon-image': 'stage-icon' },
+                paint: sharedPaint
+            });
+
+            map.setMaxBounds([
+                [-6.2665, 53.3808],
+                [-6.2582, 53.3852]
+            ]);
+
+            map.addLayer({
+                id: 'bathrooms',
+                type: 'symbol',
+                source: 'facilities',
+                filter: ['==', ['get', 'category'], 'bathroom'],
+                layout: { ...sharedLayout, 'icon-image': 'bathroom-icon' },
+                paint: sharedPaint
+            });
+
+            map.addLayer({
+                id: 'water-stations',
+                type: 'symbol',
+                source: 'facilities',
+                filter: ['==', ['get', 'category'], 'water'],
+                layout: { ...sharedLayout, 'icon-image': 'water-icon' },
+                paint: sharedPaint
+            });
+
+            map.addLayer({
+                id: 'food-stalls',
+                type: 'symbol',
+                source: 'facilities',
+                filter: ['==', ['get', 'category'], 'food'],
+                layout: { ...sharedLayout, 'icon-image': 'food-icon' },
+                paint: sharedPaint
+            });
+
+            // ✅ ADD HOVER POPUPS HERE
+            const popup = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: false,
+                offset: [0, -20]
+            });
+
+            const facilityLayers = ['stages', 'bathrooms', 'water-stations', 'food-stalls'];
+
+            facilityLayers.forEach(layerId => {
+                map.on('mouseenter', layerId, (e) => {
+                    map.getCanvas().style.cursor = 'pointer';
+
+                    const coordinates = e.features[0].geometry.coordinates.slice();
+                    const name = e.features[0].properties.name;
+                    const category = e.features[0].properties.category.charAt(0).toUpperCase() + e.features[0].properties.category.slice(1);
+                    const crowd = e.features[0].properties.crowd_level;
+
+                    const description = `
+                        <div style="font-weight:bold;font-size:14px;">${name}</div>
+                        <div style="font-size:12px;">Category: ${category}</div>
+                        <div style="font-size:12px;">Crowd: ${crowd}</div>
+                    `;
+
+                    popup.setLngLat(coordinates).setHTML(description).addTo(map);
+                });
+
+                map.on('mouseleave', layerId, () => {
+                    map.getCanvas().style.cursor = '';
+                    popup.remove();
+                });
+            });
+        }
+    });
+    
+
+    function showNotification(message) {
+    const container = document.getElementById("notification-container");
+    const toast = document.createElement("div");
+    toast.className = "toast";
+
+    const text = document.createElement("span");
+    text.textContent = message;
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✖";
+    closeBtn.style.background = "none";
+    closeBtn.style.border = "none";
+    closeBtn.style.color = "white";
+    closeBtn.style.fontWeight = "bold";
+    closeBtn.style.marginLeft = "12px";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.onclick = () => toast.remove();
+
+    toast.appendChild(text);
+    toast.appendChild(closeBtn);
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+    }, 6000);
+}
+
+    window.showNotification = showNotification;
+
+});
+</script>
+{% endblock %}

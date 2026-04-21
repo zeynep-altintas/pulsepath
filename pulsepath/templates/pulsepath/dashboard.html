@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}PulsePath | Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    /* Dashboard theming */
+    body {
+        background-color: #fff0f5 !important;
+    }
+
+    .funky-heading {
+        color: #6a0030;
+        font-weight: 800;
+        font-size: 2.5rem;
+        text-shadow: 2px 2px #ffb6c1;
+    }
+
+    .dashboard-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 2rem;
+    }
+
+    .notifications-box, .charts-box {
+        background-color: #ffe6f0;
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        flex: 1 1 400px;
+        max-width: 500px;
+    }
+
+    .notification-heading {
+        font-size: 1.6rem;
+        font-weight: bold;
+        color: #6a0030;
+        margin-bottom: 1rem;
+    }
+
+    .notification-feed {
+        max-height: 400px;
+        overflow-y: auto;
+        text-align: left;
+        font-size: 0.95rem;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 0.6rem;
+    }
+
+    .alert-msg {
+        background-color: #ffb3d9;
+        color: #4b0025;
+        padding: 10px 15px;
+        border-radius: 12px;
+        font-weight: 500;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .sim-controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-top: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .pulse-indicator {
+        height: 14px;
+        width: 14px;
+        background-color: #2ecc71;
+        border-radius: 50%;
+        animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+        70% { box-shadow: 0 0 0 8px rgba(46, 204, 113, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+    }
+
+    .cta-link {
+        text-decoration: none;
+    }
+
+    .cta-button, .red-button {
+        font-weight: bold;
+        font-size: 1.2rem;
+        padding: 10px 24px;
+        border: none;
+        border-radius: 30px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s ease-in-out;
+        color: white;
+    }
+
+    .cta-button {
+        background-color: #ff69b4;
+    }
+
+    .red-button {
+        background-color: #e74c3c;
+    }
+
+    .cta-button:hover, .red-button:hover {
+        transform: scale(1.05);
+    }
+</style>
+
+<div class="container py-5 text-center">
+    <h1 class="mb-5 funky-heading">organiser dashboard</h1>
+
+    <!-- Layout: Left = Alerts | Right = Charts -->
+    <div class="dashboard-grid">
+        <!-- Real-time zone alert feed -->
+        <div class="notifications-box">
+            <div class="notification-heading">Crowd Movement</div>
+            <div id="crowd-movement-feed" class="notification-feed"></div>
+        </div>
+
+        <!-- Footfall + Facility charts -->
+        <div class="charts-box">
+            <h4 class="mb-3 text-muted">Peak Footfall by Stage</h4>
+            <canvas id="footfallChart"></canvas>
+            <hr class="my-4">
+            <h4 class="mb-3 text-muted">Most Visited Facilities</h4>
+            <canvas id="stallChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Simulation trigger -->
+    <div class="sim-controls">
+        <button id="simulateBtn" class="red-button">Simulate Festival</button>
+        <div class="pulse-indicator" title="Live updates flowing..."></div>
+    </div>
+
+    <p style="color: #777;">These stats are simulated for demo purposes only — powered by PulsePath.</p>
+
+    <!-- CSV Export -->
+    <div class="sim-controls" style="margin-top: 0.2rem; margin-bottom: 3rem;">
+        <a href="{% url 'export_dashboard_data' %}" class="cta-link">
+            <button class="cta-button">export data</button>
+        </a>
+    </div>
+</div>
+
+<!-- Load Chart.js for visualisation -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ peak_footfall|json_script:"footfall-data" }}
+{{ stall_visits|json_script:"stall-data" }}
+
+<script>
+    // 🎯 Trigger backend simulation logic
+    document.getElementById("simulateBtn").addEventListener("click", () => {
+        fetch("/simulate-festival/", {
+            method: "POST",
+            headers: { "X-CSRFToken": "{{ csrf_token }}" }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
+                alert("Crowd simulation triggered!");
+            }
+        });
+    });
+
+    // 📊 Load footfall + stall charts using Chart.js
+    const footfallData = JSON.parse(document.getElementById('footfall-data').textContent);
+    const stallData = JSON.parse(document.getElementById('stall-data').textContent);
+
+    new Chart(document.getElementById('footfallChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(footfallData),
+            datasets: [{
+                label: 'Attendees',
+                data: Object.values(footfallData),
+                backgroundColor: '#ff7bdc',
+                borderRadius: 12
+            }]
+        },
+        options: { plugins: { legend: { display: false } } }
+    });
+
+    new Chart(document.getElementById('stallChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(stallData),
+            datasets: [{
+                label: 'Visits',
+                data: Object.values(stallData),
+                backgroundColor: '#6a5acd',
+                borderRadius: 12
+            }]
+        },
+        options: { plugins: { legend: { display: false } } }
+    });
+
+    // ♻️ Restore recent alerts (within last 2 mins) from localStorage
+    const feed = document.getElementById("crowd-movement-feed");
+    const now = Date.now();
+    const oldAlerts = JSON.parse(localStorage.getItem("dashboard_alerts") || "[]");
+    const recentAlerts = oldAlerts.filter(alert => now - alert.timestamp <= 2 * 60 * 1000);
+    for (const alert of recentAlerts) {
+        const div = document.createElement("div");
+        div.className = "alert-msg";
+        div.textContent = alert.message;
+        feed.appendChild(div);
+    }
+
+    // 🌐 Listen for WebSocket messages and update feed live
+    const socket = new WebSocket("ws://" + window.location.host + "/ws/crowd-density/");
+    const lastLevels = {};  // To prevent duplicate messages
+
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (!data.message || !data.message.zone_counts) return;
+
+        const zoneCounts = data.message.zone_counts;
+        const nowTime = Date.now();
+        let alertStore = JSON.parse(localStorage.getItem("dashboard_alerts") || "[]");
+
+        for (const [zone, count] of Object.entries(zoneCounts)) {
+            let level = "low";
+            let msg = "";
+
+            if (count >= 10) {
+                level = "max";
+                msg = `Max crowd in ${zone}! Deploy 2-3 staff`;
+            } else if (count >= 5) {
+                level = "med";
+                msg = `Send 1 staff to ${zone}`;
+            } else {
+                msg = `${zone} is quiet now. No extra staff needed.`;
+            }
+
+            // Only update if level changed
+            if (lastLevels[zone] !== level) {
+                lastLevels[zone] = level;
+
+                const timestamp = new Date().toLocaleTimeString();
+                const formatted = `[${timestamp}] ${msg}`;
+
+                const div = document.createElement("div");
+                div.className = "alert-msg";
+                div.textContent = formatted;
+                feed.appendChild(div);
+
+                // Store and prune alerts
+                alertStore.push({ timestamp: nowTime, message: formatted });
+                alertStore = alertStore.filter(a => nowTime - a.timestamp <= 2 * 60 * 1000);
+                localStorage.setItem("dashboard_alerts", JSON.stringify(alertStore));
+            }
+        }
+    };
+</script>
+{% endblock %}

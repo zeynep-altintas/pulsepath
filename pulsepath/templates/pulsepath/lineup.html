@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}PulsePath | Lineup{% endblock %}
+
+{% block content %}
+<style>
+    /* Background animation */
+    body {
+        background: linear-gradient(135deg, #ff7bdc, #1e2828, #252864);
+        background-size: 600% 600%;
+        animation: raveBackground 20s ease infinite;
+        font-family: 'Inter Tight', sans-serif;
+    }
+
+    @keyframes raveBackground {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Layout */
+    .lineup-wrapper {
+        padding: 4rem 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: #fff;
+        text-align: center;
+    }
+
+    .lineup-title {
+        font-size: 3.5rem;
+        font-weight: 900;
+        margin-bottom: 2rem;
+        text-shadow: 2px 2px #000;
+        text-transform: lowercase;
+    }
+
+    .lineup-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+        width: 100%;
+        max-width: 900px;
+    }
+
+    /* Artist selection cards */
+    .artist-card {
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 2px solid transparent;
+        padding: 1.5rem;
+        border-radius: 20px;
+        transition: transform 0.3s ease, background-color 0.3s;
+        box-shadow: 0 0 10px #ffffff44;
+        position: relative;
+        cursor: pointer;
+    }
+
+    .artist-card:hover {
+        transform: scale(1.05);
+        background-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 20px #ffffff88;
+    }
+
+    .artist-card.selected {
+        border-color: #fff;
+        background-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .artist-name {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 1px 1px #000;
+    }
+
+    .stage-info {
+        font-size: 1rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        margin-bottom: 0.3rem;
+    }
+
+    /* CTA button */
+    .cta-button {
+        background-color: #ffffff;
+        color: #d0004f;
+        border: 2px solid #d0004f;
+        padding: 12px 28px;
+        border-radius: 50px;
+        font-weight: 700;
+        text-transform: lowercase;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        margin-top: 3rem;
+    }
+
+    .cta-button:hover {
+        background-color: #ffe2eb;
+        color: #a6003b;
+        border-color: #a6003b;
+        transform: scale(1.05);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .lineup-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .lineup-title {
+            font-size: 2.5rem;
+        }
+    }
+</style>
+
+<!-- Lineup section title -->
+<div class="lineup-wrapper">
+    <h1 class="lineup-title">festival lineup</h1>
+
+    <!-- Selection form for saving artist preferences -->
+    <form method="post" action="{% url 'lineup' %}" id="saveForm">
+        {% csrf_token %}
+        <input type="hidden" name="selected_artists" id="selectedArtistsInput">
+
+        <!-- Artist grid -->
+        <div class="lineup-grid" id="artistGrid">
+            {% for artist in artist_lineup %}
+            <div class="artist-card" data-artist="{{ artist.name }}">
+                <div class="artist-name">{{ artist.name }}</div>
+                <div class="stage-info">{{ artist.stage }} — {{ artist.time }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Save button -->
+        <button type="submit" class="cta-button">save my lineup</button>
+    </form>
+</div>
+
+<script>
+    // Handle selection state visually
+    const artistCards = document.querySelectorAll('.artist-card');
+    const selectedInput = document.getElementById('selectedArtistsInput');
+
+    artistCards.forEach(card => {
+        card.addEventListener('click', () => {
+            card.classList.toggle('selected');
+        });
+    });
+
+    // On submit, store selected artist names into hidden input
+    document.getElementById('saveForm').addEventListener('submit', function () {
+        const selected = Array.from(document.querySelectorAll('.artist-card.selected'))
+            .map(card => card.dataset.artist);
+        selectedInput.value = JSON.stringify(selected);
+    });
+</script>
+{% endblock %}

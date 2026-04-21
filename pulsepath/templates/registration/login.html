@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background-color: #fff0f5;
+    }
+
+    .login-container {
+        max-width: 500px;
+        background-color: #ffe0ec;
+        padding: 3rem 2rem;
+        margin: 4rem auto;
+        border-radius: 2rem;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .login-container h1 {
+        font-size: 2.5rem;
+        color: #6a0030;
+        font-weight: 800;
+        margin-bottom: 2rem;
+        text-shadow: 1px 1px #ffb6c1;
+    }
+
+    .login-container label {
+        color: #6a0030;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+    }
+
+    .login-container input[type="text"],
+    .login-container input[type="password"] {
+        border-radius: 1rem;
+        border: 2px solid #ff7bdc;
+        padding: 0.6rem 1rem;
+        width: 100%;
+        margin-bottom: 1.2rem;
+    }
+
+    .cta-button {
+        background-color: #ff7bdc;
+        border: none;
+        color: white;
+        padding: 0.7rem 2rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        border-radius: 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .cta-button:hover {
+        background-color: #ff4db8;
+        transform: scale(1.03);
+    }
+
+    .login-container a {
+        color: #cc4e00;
+        font-weight: 600;
+    }
+
+    .alert-danger {
+        background-color: #ffccd5;
+        color: #6a0030;
+        border: none;
+        border-radius: 1rem;
+        font-weight: 600;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="login-container text-center">
+    <h1>Login to PulsePath</h1>
+
+    <form method="post" class="text-start">
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div class="alert alert-danger">
+                <strong>Login failed:</strong> Please check your username and password and try again.
+            </div>
+        {% endif %}
+
+        <div class="mb-3">
+            {{ form.username.label_tag }}
+            {{ form.username }}
+        </div>
+        <div class="mb-3">
+            {{ form.password.label_tag }}
+            {{ form.password }}
+        </div>
+        <div class="text-center">
+            <button type="submit" class="cta-button">Login</button>
+        </div>
+    </form>
+
+    <p class="mt-4 text-center">Don't have an account? <a href="{% url 'signup' %}">Sign up here</a></p>
+</div>
+{% endblock %}
